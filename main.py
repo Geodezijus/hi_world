@@ -15,5 +15,6 @@ if __name__ == '__main__':
     print("ble")
     print("meh")
     print("meh2")
+    print("meh3")
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
