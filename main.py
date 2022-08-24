@@ -12,7 +12,9 @@ def print_hi(name):
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     print_hi('PyCharm')
-    print_hi('1')
-    print("naxui")
+    print("ble")
+    print("meh")
+    print("meh2")
+    print("meh3")
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
