@@ -27,17 +27,40 @@ def resize(width, image):
     image = image.resize((new_width, new_height))
     return image
 
+def save_image_corner(prereq_values, map_or_not):
+    temp_image_path = prereq_values['temp_shot_jpg']
+    temp_image_corner_path = prereq_values['temp_image_corner_path']
+    img = Image.open(temp_image_path)
+    if map_or_not:
+        box = (300, 0, 700, 100)  # (left, upper, right, lower)
+        # Crop the image
+        cropped_img = img.crop(box)
+        # Save the cropped image as a new file
+        cropped_img.save(temp_image_corner_path)
+    else:
+        # Define the region to crop
+        box = (1380, 760, 1920, 1000)  # (left, upper, right, lower)
+        # Crop the image
+        cropped_img = img.crop(box)
+        # Save the cropped image as a new file
+        cropped_img.save(temp_image_corner_path)
 
-def _check_if_unique_map(prereq_values):
+
+
+
+def _check_if_unique_map(prereq_values, map_or_not):
     result = {'match': True, 'unique': True, 'path': '', 'map_name': '', 'width': 1280, 'ocr': True}
     print('Welcome to Capture Game')
     temp_image_path = prereq_values['temp_shot_jpg']
     temp_image_png = prereq_values['temp_shot_png']
+    temp_image_corner_path = prereq_values['temp_image_corner_path']
     if os.path.exists(temp_image_path):
         # Delete the file if it exists
         os.remove(temp_image_path)
     if os.path.exists(temp_image_png):
         os.remove(temp_image_png)
+    if os.path.exists(temp_image_corner_path):
+        os.remove(temp_image_corner_path)
     try:
         image = ImageGrab.grabclipboard()
         # Save the image to a file
@@ -48,7 +71,8 @@ def _check_if_unique_map(prereq_values):
         result['unique'] = False
         result['match'] = False
         return result
-    test_file, test_json = OCRApi.ocr_space_file(filename=temp_image_path, language='eng')
+    save_image_corner(prereq_values, map_or_not)
+    test_file, test_json = OCRApi.ocr_space_file(filename=temp_image_corner_path, language='eng')
     print(json.dumps(test_json, indent=2))
     results_str = test_json['ParsedResults'][0]['ParsedText']
     match = search(r'(\w+)-(\w+)', results_str)
@@ -74,6 +98,7 @@ def _check_if_unique_map(prereq_values):
         result['unique'] = False
         result['match'] = False
         return result
+
 
 def check_if_exists_noOCR(prereq_values, typed_map_name):
     result = {'match': True, 'unique': True, 'path': '', 'map_name': '', 'width': 1280, 'ocr': False}
@@ -117,6 +142,7 @@ def prereq_setup():
     data_dict['temp_shot_jpg'] = os.path.join(data_dict['cwd'], r'temp_screenshots\screenshot.jpg')
     data_dict['temp_shot_png'] = os.path.join(data_dict['cwd'], r'temp_screenshots\screenshot.png')
     data_dict['perm_dir'] = os.path.join(data_dict['cwd'], 'permanenet_db')
+    data_dict['temp_image_corner_path'] = os.path.join(data_dict['cwd'], r'temp_screenshots\screenshot_corner.jpg')
 
     return data_dict
 
@@ -127,6 +153,7 @@ def simple_window(prereq_data):
 
     column_1 = [[sg.Image(prereq_data['init_image_path'], key='--IMAGE--', size=(1440, 810))],
                 [sg.Button('Capture', key='--CAPTURE--'),
+                 sg.Button('Capture map', key='--CAPTUREMAP--'),
                  sg.Button('Redo', key='--REDO--', disabled=True),
                  sg.Input('', key='--INPUT--'),
                  sg.Multiline(key='--INFO--', autoscroll=True, size=(30, 10)),
@@ -151,14 +178,20 @@ def simple_window(prereq_data):
         event, values = window.read()
         if event == sg.WIN_CLOSED:
             break
-        if event == '--CAPTURE--':
+        if event == '--CAPTURE--' or '--CAPTUREMAP--':
             correct_map = window['--INPUT--'].get()
             if (correct_map != '' or None) and search(r'(\w+)-(\w+)', correct_map):
                 results = check_if_exists_noOCR(prereq_data, correct_map)
                 window['--CAPTURE--'].update(disabled=True)
-            else:
-                results = _check_if_unique_map(prereq_data)
+                window['--CAPTUREMAP--'].update(disabled=True)
+            elif event == '--CAPTURE--':
+                results = _check_if_unique_map(prereq_data, False)
                 window['--CAPTURE--'].update(disabled=True)
+                window['--CAPTUREMAP--'].update(disabled=True)
+            elif event == '--CAPTUREMAP--':
+                results = _check_if_unique_map(prereq_data, True)
+                window['--CAPTURE--'].update(disabled=True)
+                window['--CAPTUREMAP--'].update(disabled=True)
 
             if results['match']:
                 if results['ocr']:
@@ -174,6 +207,7 @@ def simple_window(prereq_data):
                         window['--CONT--'].update(disabled=True)
                         window['--REDO--'].update(disabled=True)
                         window['--CAPTURE--'].update(disabled=False)
+                        window['--CAPTUREMAP--'].update(disabled=False)
                         continue
                     if event == '--CONT--':
                         fixed_map = window['--CORRECT_MAP--'].get()
@@ -197,6 +231,7 @@ def simple_window(prereq_data):
                             window['--DETAILS--'].update('')
                             window['--INFO--'].update(f'Filled: {results["map_name"]}\n', append=True)
                             window['--CAPTURE--'].update(disabled=False)
+                            window['--CAPTUREMAP--'].update(disabled=False)
                             window['--DONE--'].update(disabled=True)
                         if event == sg.WIN_CLOSED:
                             break
@@ -217,11 +252,13 @@ def simple_window(prereq_data):
                             window['--CHECK--'].update(disabled=True)
                             window['--REDO--'].update(disabled=True)
                             window['--CAPTURE--'].update(disabled=False)
+                            window['--CAPTUREMAP--'].update(disabled=False)
                             window['--DETAILS--'].update('')
                             continue
             else:
                 window['--INFO--'].update('Redo capture or type correct format\n', append=True)
                 window['--CAPTURE--'].update(disabled=False)
+                window['--CAPTUREMAP--'].update(disabled=False)
 
     # Close the window
     window.close()
